@@ -1,0 +1,43 @@
+﻿@page "/google/authorize"
+@using Microsoft.AspNetCore.WebUtilities
+@using Microsoft.Extensions.Primitives
+@using System.Diagnostics
+@using System.Text.Json
+
+@inject NavigationManager _navigation
+
+<h3>GmailAuthorize</h3>
+<p>@_absoluteUri</p>
+@* <p>@JsonSerializer.Serialize(_queryDictionary)</p> *@
+
+@code {
+    private string _authToken;
+    private string _absoluteUri;
+    private Dictionary<string, StringValues> _queryDictionary;
+
+    // protected override async Task OnInitializedAsync()
+    // {
+    //     var uri = _navigation.ToAbsoluteUri(_navigation.Uri);
+
+    //     _absoluteUri = uri.AbsoluteUri;
+
+    //     var uriParts = _absoluteUri.Split('#');
+    //     Debug.WriteLine(JsonSerializer.Serialize(uriParts));
+
+    //     // _queryDictionary = QueryHelpers.ParseQuery(uriParts[1]);
+
+    //     await base.OnInitializedAsync();
+    // }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var uri = _navigation.ToAbsoluteUri(_navigation.Uri);
+
+        _absoluteUri = uri.AbsoluteUri;
+
+        var uriParts = _absoluteUri.Split('#');
+        Debug.WriteLine(JsonSerializer.Serialize(uriParts));
+
+        await base.OnParametersSetAsync();
+    }
+}
