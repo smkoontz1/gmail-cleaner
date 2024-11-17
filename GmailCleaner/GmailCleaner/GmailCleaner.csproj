@@ -21,8 +21,4 @@
     <PackageReference Include="RestSharp" Version="112.1.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Services\GmailApi\Responses\" />
-  </ItemGroup>
-
 </Project>

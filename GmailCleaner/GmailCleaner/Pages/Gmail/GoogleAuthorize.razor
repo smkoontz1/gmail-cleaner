@@ -34,6 +34,8 @@
 
         var gmailService = new GmailApiService(authToken);
 
-        _messages = await gmailService.ListMessagesAsync("smkoontz1@gmail.com");
+        var messageResponse = await gmailService.ListMessagesAsync("smkoontz1@gmail.com");
+
+        _messages = JsonSerializer.Serialize(messageResponse.Messages);
     }
 }

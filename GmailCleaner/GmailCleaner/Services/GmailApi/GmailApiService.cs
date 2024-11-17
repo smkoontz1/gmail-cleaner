@@ -1,5 +1,7 @@
-﻿using RestSharp;
+﻿using GmailCleaner.Services.GmailApi.Responses;
+using RestSharp;
 using RestSharp.Authenticators.OAuth2;
+using System.Diagnostics;
 using System.Text.Json;
 
 namespace GmailCleaner.Services.GmailApi
@@ -16,14 +18,18 @@ namespace GmailCleaner.Services.GmailApi
             });
         }
 
-        public async Task<string> ListMessagesAsync(string userId)
+        public async Task<MessageListResponse> ListMessagesAsync(string userId)
         {
             var request = new RestRequest("users/{userId}/messages")
                 .AddUrlSegment("userId", userId);
 
-            var response = await _gmailClient.ExecuteGetAsync(request);
+            var responseJson = (await _gmailClient.ExecuteGetAsync(request)).Content;
 
-            return response.Content;
+            Debug.WriteLine(responseJson);
+
+            var response = JsonSerializer.Deserialize<MessageListResponse>(responseJson);
+
+            return response;
         }
     }
 }
