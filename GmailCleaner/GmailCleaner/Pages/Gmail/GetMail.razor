@@ -1,4 +1,5 @@
 ﻿@page "/viewmail"
+@using System.Diagnostics
 @using GmailCleaner.Data.Gmail
 @using GmailCleaner.Data.Gmail.Models
 
@@ -13,17 +14,15 @@
                     <BSTD>Id</BSTD>
                     <BSTD>Sender</BSTD>
                     <BSTD>Subject</BSTD>
-                    <BSTD>Body</BSTD>
                 </BSTR>
             </BSTHead>
             <BSTBody>
                 @foreach (var message in _messages)
                 {
                     <BSTR>
-                        <BSTD>@message.MessageId</BSTD>
+                        <BSTD>@message.StoredMessageId</BSTD>
                         <BSTD>@message.Sender</BSTD>
                         <BSTD>@message.Subject</BSTD>
-                        <BSTD>@message.Body</BSTD>
                     </BSTR>
                 }
             </BSTBody>
@@ -31,17 +30,21 @@
     }
     else
     {
-        <BSButton onclick="@AddMessagesAsync()">Add Messages</BSButton>
+        <BSButton onclick="@(async () => await AddMessagesAsync())">Add Messages</BSButton>
     }
 </BSContainer>
 
 @code {
-    private List<Message> _messages = new();
+    private List<StoredMessage> _messages = new();
 
     protected override async Task OnInitializedAsync()
     {
         using (var context = new GmailDbContext())
         {
+            Debug.WriteLine($"Path: {context.DbPath}");
+            
+            await context.Database.EnsureCreatedAsync();
+            
             _messages = context.Messages.ToList();
         }
 
@@ -50,21 +53,19 @@
 
     private async Task AddMessagesAsync()
     {
-        var messages = new List<Message>
+        var messages = new List<StoredMessage>
         {
-            new Message
+            new StoredMessage
             {
-                MessageId = 1,
+                StoredMessageId = 1,
                 Sender = "Sender1",
                 Subject = "Subject1",
-                Body = "Body1"
             },
-            new Message
+            new StoredMessage
             {
-                MessageId = 2,
+                StoredMessageId = 2,
                 Sender = "Sender2",
                 Subject = "Subject2",
-                Body = "Body2"
             }
         };
 

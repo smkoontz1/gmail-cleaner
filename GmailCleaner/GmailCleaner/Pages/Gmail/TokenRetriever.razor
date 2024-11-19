@@ -1,0 +1,48 @@
+﻿@page "/google/token"
+@using System.Diagnostics
+@using System.Text.Json
+@using Microsoft.AspNetCore.WebUtilities
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+
+@inject NavigationManager _navigation
+@inject ProtectedLocalStorage _localStorage
+
+<h3>GmailAuthorize</h3>
+<p>@_messages</p>
+
+@code {
+    private string _messages = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uriParts = _navigation.Uri.Split('#');
+
+        if (uriParts.Length == 2)
+        {
+            await GetMessagesAsync(uriParts[1]);
+        }
+
+        await base.OnInitializedAsync();
+    }
+
+    private async Task GetMessagesAsync(string tokenQueryString)
+    {
+        var tokenParts = QueryHelpers.ParseQuery(tokenQueryString);
+
+        Debug.WriteLine("PARTS:\n" + JsonSerializer.Serialize(tokenParts));
+        
+        var authToken = tokenParts["access_token"];
+        var expiresInStr = tokenParts["expires_in"];
+        var expiresIn = int.Parse(expiresInStr);
+
+        var expiry = DateTimeOffset.Now.ToUnixTimeMilliseconds() + (expiresIn * 1000);
+
+        Debug.WriteLine($"Storing access token: {authToken}");
+        Debug.WriteLine($"Storing expiration: {expiry}");
+        
+        await _localStorage.SetAsync("gmailAccessToken", authToken.ToString());
+        await _localStorage.SetAsync("gmailAccessTokenExpiry", expiry);
+        
+        _navigation.NavigateTo("/managemail");
+    }
+}

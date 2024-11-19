@@ -5,7 +5,7 @@ namespace GmailCleaner.Data.Gmail
 {
     public class GmailDbContext : DbContext
     {
-        public DbSet<Message> Messages { get; set; }
+        public DbSet<StoredMessage> Messages { get; set; }
 
         public string DbPath { get; }
 
