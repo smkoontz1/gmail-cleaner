@@ -1,0 +1,26 @@
+@using GmailCleaner.Data.Gmail.Models
+
+<BSTable>
+    <BSTHead>
+        <BSTR>
+            <BSTD>Id</BSTD>
+            <BSTD>Sender</BSTD>
+            <BSTD>Subject</BSTD>
+        </BSTR>
+    </BSTHead>
+    <BSTBody>
+        @foreach (var message in Messages)
+        {
+            <BSTR>
+                <BSTD>@message.GmailMessageId</BSTD>
+                <BSTD>@message.Sender</BSTD>
+                <BSTD>@message.Subject</BSTD>
+            </BSTR>
+        }
+    </BSTBody>
+</BSTable>
+
+@code {
+    [Parameter]
+    public List<StoredMessage> Messages { get; set; }
+}

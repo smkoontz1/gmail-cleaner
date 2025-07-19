@@ -1,0 +1,72 @@
+﻿@page "/managemail"
+@using GmailCleaner.Components.Gmail
+@using GmailCleaner.Data.Gmail
+@using GmailCleaner.Data.Gmail.Models
+@using GmailCleaner.Services.GmailApi
+@using Microsoft.EntityFrameworkCore
+
+@inject GmailApiService GmailApiService
+
+<BSContainer>
+    <h3>Manage Mail</h3>
+    @if (_loading)
+    {
+        <BSSpinner />   
+    }
+    else
+    {
+        <MailTable Messages="_storedMessages" />
+    }
+</BSContainer>
+
+@code {
+    private List<StoredMessage> _storedMessages = new();
+
+    private bool _loading;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStoredMessagesAsync();
+        await SyncMailAsync();
+
+        await base.OnInitializedAsync();
+    }
+
+    private async Task LoadStoredMessagesAsync()
+    {
+        using (var context = new GmailDbContext())
+        {
+            await context.Database.EnsureCreatedAsync();
+
+            _storedMessages = await context.Messages.ToListAsync();
+        }
+    }
+
+    private async Task SyncMailAsync()
+    {
+        _loading = true;
+        
+        var userId = "smkoontz1@gmail.com";
+        
+        var messageListPage = await GmailApiService.ListMessagesAsync(userId);
+        var messagePage = await GmailApiService.GetMessagesAsync(userId, messageListPage.Messages.Select(m => m.Id).ToArray());
+
+        var storedMessages = messagePage.Select(m => new StoredMessage
+        {
+            GmailMessageId = m.Id,
+            Sender = m.Payload.Headers.First(h => h.Name == "From").Value,
+            Subject = m.Payload.Headers.First(h => h.Name == "Subject").Value
+        });
+        
+        using (var context = new GmailDbContext())
+        {
+            context.Messages.AddRange(storedMessages);
+
+            await context.SaveChangesAsync();
+
+            _storedMessages = await context.Messages.ToListAsync();
+        }
+
+        _loading = false;
+    }
+}
