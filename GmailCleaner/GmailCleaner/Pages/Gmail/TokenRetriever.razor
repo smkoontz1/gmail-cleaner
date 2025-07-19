@@ -4,8 +4,8 @@
 @using Microsoft.AspNetCore.WebUtilities
 @using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
 
-@inject NavigationManager _navigation
-@inject ProtectedLocalStorage _localStorage
+@inject NavigationManager Navigation
+@inject ProtectedLocalStorage LocalStorage
 
 <h3>GmailAuthorize</h3>
 <p>@_messages</p>
@@ -15,17 +15,17 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var uriParts = _navigation.Uri.Split('#');
+        var uriParts = Navigation.Uri.Split('#');
 
         if (uriParts.Length == 2)
         {
-            await GetMessagesAsync(uriParts[1]);
+            await StoreTokenAsync(uriParts[1]);
         }
 
         await base.OnInitializedAsync();
     }
 
-    private async Task GetMessagesAsync(string tokenQueryString)
+    private async Task StoreTokenAsync(string tokenQueryString)
     {
         var tokenParts = QueryHelpers.ParseQuery(tokenQueryString);
 
@@ -40,9 +40,18 @@
         Debug.WriteLine($"Storing access token: {authToken}");
         Debug.WriteLine($"Storing expiration: {expiry}");
         
-        await _localStorage.SetAsync("gmailAccessToken", authToken.ToString());
-        await _localStorage.SetAsync("gmailAccessTokenExpiry", expiry);
-        
-        _navigation.NavigateTo("/managemail");
+        await LocalStorage.SetAsync(Constants.LocalStorageKeys.GoogleAccessToken, authToken.ToString());
+        await LocalStorage.SetAsync(Constants.LocalStorageKeys.GoogleAccessTokenExpiry, expiry);
+
+        var postRefreshPathResult = await LocalStorage.GetAsync<string>(Constants.LocalStorageKeys.PostRefreshPath);
+        var postRefreshPath = postRefreshPathResult.Value;
+        if (postRefreshPath is not null)
+        {
+            Navigation.NavigateTo(postRefreshPath);
+        }
+        else
+        {
+            Navigation.NavigateTo("/managemail");
+        }
     }
 }

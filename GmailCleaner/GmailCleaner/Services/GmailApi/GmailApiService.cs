@@ -1,8 +1,5 @@
-﻿using System.Data.Common;
-using GmailCleaner.Services.GmailApi.Responses;
+﻿using GmailCleaner.Services.GmailApi.Responses;
 using RestSharp;
-using RestSharp.Authenticators.OAuth2;
-using System.Diagnostics;
 using System.Text.Json;
 
 namespace GmailCleaner.Services.GmailApi
@@ -10,26 +7,24 @@ namespace GmailCleaner.Services.GmailApi
     public class GmailApiService
     {
         private readonly RestClient _gmailClient;
-
-        public GmailApiService(string authToken)
+        
+        public GmailApiService(
+            GoogleAuthService authService)
         {
-            Debug.WriteLine($"GOT AUTH TOKEN: {authToken}");
-            
             _gmailClient = new RestClient(new RestClientOptions("https://gmail.googleapis.com/gmail/v1")
             {
-                Authenticator = new OAuth2AuthorizationRequestHeaderAuthenticator(authToken, "Bearer")
+                Authenticator = new GmailApiAuthenticator(authService)
             });
         }
 
         public async Task<MessageListResponse> ListMessagesAsync(string userId)
         {
+            Console.WriteLine("Listing messages");
             var request = new RestRequest("users/{userId}/messages")
                 .AddUrlSegment("userId", userId);
 
             var responseJson = (await _gmailClient.ExecuteGetAsync(request)).Content;
 
-            Debug.WriteLine(responseJson);
-            
             var response = JsonSerializer.Deserialize<MessageListResponse>(responseJson);
 
             return response;
@@ -60,9 +55,6 @@ namespace GmailCleaner.Services.GmailApi
                 .AddUrlSegment("messageId", messageId);
             
             var responseJson = (await _gmailClient.ExecuteGetAsync(request)).Content;
-            
-            Debug.WriteLine("MESSAGE");
-            Debug.WriteLine(responseJson);
             
             return JsonSerializer.Deserialize<MessageReponse>(responseJson);
         }

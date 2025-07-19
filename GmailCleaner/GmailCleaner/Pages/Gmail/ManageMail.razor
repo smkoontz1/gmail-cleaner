@@ -1,15 +1,11 @@
 ﻿@page "/managemail"
-@using System.Diagnostics
-@using Flurl
-@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
 @using GmailCleaner.Components.Gmail
 @using GmailCleaner.Data.Gmail
 @using GmailCleaner.Data.Gmail.Models
 @using GmailCleaner.Services.GmailApi
 @using Microsoft.EntityFrameworkCore
 
-@inject NavigationManager _navigation
-@inject ProtectedLocalStorage _localStorage
+@inject GmailApiService GmailApiService
 
 <BSContainer>
     <h3>Manage Mail</h3>
@@ -26,55 +22,14 @@
 @code {
     private List<StoredMessage> _storedMessages = new();
 
-    private string _authToken = string.Empty;
-    private bool _loading = false;
+    private bool _loading;
     
     protected override async Task OnInitializedAsync()
     {
         await LoadStoredMessagesAsync();
-        await VerifyValidTokenAsync();
         await SyncMailAsync();
 
         await base.OnInitializedAsync();
-    }
-
-    private async Task VerifyValidTokenAsync()
-    {
-        var tokenResult = await _localStorage.GetAsync<string>("gmailAccessToken");
-        var tokenExpiryResult = await _localStorage.GetAsync<long>("gmailAccessTokenExpiry");
-
-        if (!tokenResult.Success || !tokenExpiryResult.Success)
-        {
-            Debug.WriteLine("TOKEN DIDN'T EXSIST... Getting new one");
-            GetNewToken();
-        }
-
-        var tokenExpiry = tokenExpiryResult.Value;
-        var now = DateTime.UtcNow.Millisecond;
-
-        if (now > tokenExpiry)
-        {
-            Debug.WriteLine("TOKEN EXPIRED... Getting new one");
-            GetNewToken();
-        }
-
-        Debug.WriteLine("Token was valid... doing nothing");
-        _authToken = tokenResult.Value;
-    }
-
-    private void GetNewToken()
-    {
-        var authEndpoint = "https://accounts.google.com/o/oauth2/v2/auth"
-            .SetQueryParams(new
-            {
-                client_id = "771093418835-kao6u6nmsqtmtbo0vuje4iar7k84a01k.apps.googleusercontent.com",
-                redirect_uri = "https://localhost:7142/google/token",
-                response_type = "token",
-                scope = "https://mail.google.com/",
-                include_granted_scopes = "true",
-            });
-
-        _navigation.NavigateTo(authEndpoint);
     }
 
     private async Task LoadStoredMessagesAsync()
@@ -91,12 +46,10 @@
     {
         _loading = true;
         
-        var gmailApiService = new GmailApiService(_authToken);
-
         var userId = "smkoontz1@gmail.com";
         
-        var messageListPage = await gmailApiService.ListMessagesAsync(userId);
-        var messagePage = await gmailApiService.GetMessagesAsync(userId, messageListPage.Messages.Select(m => m.Id).ToArray());
+        var messageListPage = await GmailApiService.ListMessagesAsync(userId);
+        var messagePage = await GmailApiService.GetMessagesAsync(userId, messageListPage.Messages.Select(m => m.Id).ToArray());
 
         var storedMessages = messagePage.Select(m => new StoredMessage
         {

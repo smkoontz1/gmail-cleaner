@@ -1,12 +1,18 @@
 using BlazorStrap;
 using GmailCleaner.Data;
+using GmailCleaner.Services.GmailApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
-builder.Services.AddSingleton<WeatherForecastService>();
+
+builder.Services
+    .AddSingleton<WeatherForecastService>()
+    .AddScoped<GoogleAuthService>()
+    .AddScoped<GmailApiService>();
+
 builder.Services.AddBlazorStrap();
 
 var app = builder.Build();
