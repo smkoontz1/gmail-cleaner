@@ -1,4 +1,5 @@
-﻿using GmailCleaner.Services.GmailApi.Responses;
+﻿using System.Diagnostics;
+using GmailCleaner.Services.GmailApi.Responses;
 using RestSharp;
 using System.Text.Json;
 
@@ -17,13 +18,53 @@ namespace GmailCleaner.Services.GmailApi
             });
         }
 
-        public async Task<MessageListResponse> ListMessagesAsync(string userId)
+        public async Task<HistoryListResponse> ListHistoryAsync(
+            string userId,
+            string startHistoryId,
+            string? pageToken = null)
         {
-            Console.WriteLine("Listing messages");
-            var request = new RestRequest("users/{userId}/messages")
-                .AddUrlSegment("userId", userId);
+            var request = new RestRequest("users/{userId}/history")
+                .AddUrlSegment("userId", userId)
+                .AddQueryParameter("maxResults", 500)
+                .AddQueryParameter("startHistoryId", startHistoryId)
+                .AddQueryParameter("historyTypes", "messageAdded" );
 
-            var responseJson = (await _gmailClient.ExecuteGetAsync(request)).Content;
+            if (!string.IsNullOrWhiteSpace(pageToken))
+            {
+                request.AddQueryParameter("pageToken", pageToken);
+            }
+
+            var apiResponse = await _gmailClient.ExecuteGetAsync(request);
+            if (!apiResponse.IsSuccessful)
+            {
+                Debug.WriteLine($"List history failed with code: {apiResponse.StatusCode}");
+            }
+            var responseJson = apiResponse.Content;
+
+            var response = JsonSerializer.Deserialize<HistoryListResponse>(responseJson);
+
+            return response;
+        }
+        
+        public async Task<MessageListResponse> ListMessagesAsync(
+            string userId,
+            string? pageToken = null)
+        {
+            var request = new RestRequest("users/{userId}/messages")
+                .AddUrlSegment("userId", userId)
+                .AddQueryParameter("maxResults", 500);
+
+            if (!string.IsNullOrWhiteSpace(pageToken))
+            {
+                request.AddQueryParameter("pageToken", pageToken);
+            }
+
+            var apiResponse = await _gmailClient.ExecuteGetAsync(request);
+            if (!apiResponse.IsSuccessful)
+            {
+                Debug.WriteLine($"List messages failed with code: {apiResponse.StatusCode}");
+            }
+            var responseJson = apiResponse.Content;
 
             var response = JsonSerializer.Deserialize<MessageListResponse>(responseJson);
 
@@ -43,6 +84,7 @@ namespace GmailCleaner.Services.GmailApi
                 var results = await Task.WhenAll(tasks);
 
                 responses.AddRange(results);
+                Debug.WriteLine($"Retrieved {responses.Count} messages for page");
             }
             
             return responses;
@@ -53,10 +95,41 @@ namespace GmailCleaner.Services.GmailApi
             var request = new RestRequest("users/{userId}/messages/{messageId}")
                 .AddUrlSegment("userId", userId)
                 .AddUrlSegment("messageId", messageId);
-            
-            var responseJson = (await _gmailClient.ExecuteGetAsync(request)).Content;
+
+            var apiResponse = await _gmailClient.ExecuteGetAsync(request);
+            if (!apiResponse.IsSuccessful)
+            {
+                Debug.WriteLine($"Get message failed with code: {apiResponse.StatusCode}");
+            }
+            var responseJson = apiResponse.Content;
             
             return JsonSerializer.Deserialize<MessageReponse>(responseJson);
+        }
+
+        public async Task<bool> BatchDeleteAsync(string userId, IEnumerable<string> messageIds)
+        {
+            var messageIdBatches = messageIds.Chunk(500).ToArray();
+
+            var success = true;
+            
+            foreach (var batch in messageIdBatches)
+            {
+                var request = new RestRequest("users/{userId}/messages/batchDelete")
+                    .AddUrlSegment("userId", userId)
+                    .AddBody(new
+                    {
+                        ids = batch.ToArray()
+                    });
+                
+                var response = await _gmailClient.ExecutePostAsync(request);
+                if (!response.IsSuccessful)
+                {
+                    success = false;
+                    Debug.WriteLine($"Batch delete failed with code: {response.StatusCode}");
+                }
+            }
+
+            return success;
         }
     }
 }

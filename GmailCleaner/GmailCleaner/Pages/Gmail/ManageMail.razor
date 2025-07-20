@@ -1,71 +1,98 @@
 ﻿@page "/managemail"
-@using GmailCleaner.Components.Gmail
-@using GmailCleaner.Data.Gmail
-@using GmailCleaner.Data.Gmail.Models
-@using GmailCleaner.Services.GmailApi
-@using Microsoft.EntityFrameworkCore
 
-@inject GmailApiService GmailApiService
+@using BlazorStrap
+@using GmailCleaner.Components.Gmail
+@using GmailCleaner.Models.SenderCounts
+@using GmailCleaner.Services.GmailManagement
+
+@inject GmailManagementService GmailManagementService
 
 <BSContainer>
     <h3>Manage Mail</h3>
     @if (_loading)
     {
-        <BSSpinner />   
+        <BSSpinner />
+    }
+    else if (_syncing)
+    {
+        <p>Syncing Mail...</p>
+        <BSSpinner />
+    }
+    else if (_deleting)
+    {
+        <p>Deleting Mail for @(_checkedSenders.Count) senders...</p>
+        <BSSpinner />
     }
     else
     {
-        <MailTable Messages="_storedMessages" />
+        <BSButton Color="BSColor.Primary" OnClick="HandleSyncAsync">Sync Mail</BSButton>
+        <MailTable
+            SenderCountPage="_senderCountPage"
+            @bind-CheckedSenders="_checkedSenders"
+            @bind-AllChecked="_allChecked"
+        />
+        <BSPagination Pages="_totalPages" Value="_page" ValueChanged="HandlePageChangeAsync"/>
+        <BSButton Color="BSColor.Danger" OnClick="HandleDeleteAsync">Delete Senders</BSButton>
     }
 </BSContainer>
 
 @code {
-    private List<StoredMessage> _storedMessages = new();
-
+    private SenderCountPage _senderCountPage;
+    
     private bool _loading;
+    private int _page = 1;
+    private const int _pageSize = 20;
+    private int _totalPages;
+    private bool _allChecked;
+    private bool _syncing;
+    private bool _deleting;
+
+    private HashSet<string> _checkedSenders = new();
     
     protected override async Task OnInitializedAsync()
     {
-        await LoadStoredMessagesAsync();
-        await SyncMailAsync();
+        await LoadSenderCountsAsync();
 
         await base.OnInitializedAsync();
     }
 
-    private async Task LoadStoredMessagesAsync()
+    private async Task HandlePageChangeAsync(int newPage)
     {
-        using (var context = new GmailDbContext())
-        {
-            await context.Database.EnsureCreatedAsync();
+        _page = newPage;
+        _allChecked = false;
 
-            _storedMessages = await context.Messages.ToListAsync();
-        }
+        await LoadSenderCountsAsync();
     }
 
-    private async Task SyncMailAsync()
+    private async Task HandleDeleteAsync()
+    {
+        _deleting = true;
+        
+        await GmailManagementService.DeleteBySendersAsync(_checkedSenders);
+
+        _checkedSenders.Clear();
+        await HandlePageChangeAsync(1);
+
+        _deleting = false;
+    }
+
+    private async Task HandleSyncAsync()
+    {
+        _syncing = true;
+
+        await GmailManagementService.SyncMail();
+
+        await HandlePageChangeAsync(1);
+
+        _syncing = false;
+    }
+
+    private async Task LoadSenderCountsAsync()
     {
         _loading = true;
         
-        var userId = "smkoontz1@gmail.com";
-        
-        var messageListPage = await GmailApiService.ListMessagesAsync(userId);
-        var messagePage = await GmailApiService.GetMessagesAsync(userId, messageListPage.Messages.Select(m => m.Id).ToArray());
-
-        var storedMessages = messagePage.Select(m => new StoredMessage
-        {
-            GmailMessageId = m.Id,
-            Sender = m.Payload.Headers.First(h => h.Name == "From").Value,
-            Subject = m.Payload.Headers.First(h => h.Name == "Subject").Value
-        });
-        
-        using (var context = new GmailDbContext())
-        {
-            context.Messages.AddRange(storedMessages);
-
-            await context.SaveChangesAsync();
-
-            _storedMessages = await context.Messages.ToListAsync();
-        }
+        _senderCountPage = await GmailManagementService.GetSenderCountsAsync(_page, _pageSize);
+        _totalPages = (_senderCountPage.TotalCount / _pageSize) + 1;
 
         _loading = false;
     }

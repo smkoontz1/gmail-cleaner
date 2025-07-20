@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 using Flurl;
 using Microsoft.AspNetCore.Components;
@@ -19,20 +20,25 @@ public class GoogleAuthService(
         }
         
         var tokenExpiry = tokenExpiryResult.Value;
-        var now = DateTime.UtcNow.Millisecond;
+        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
+        // Debug.WriteLine($"Token expiry: {tokenExpiry}");
+        // Debug.WriteLine($"Now: {now}");
+        
         if (now > tokenExpiry)
         {
+            // Debug.WriteLine("Expired... refreshing");
+            
             await RefreshTokenAsync();
         }
 
+        // Debug.WriteLine("Not expired... returning");
         return tokenResult.Value;
     }
 
     private async Task RefreshTokenAsync()
     {
         var currentLocation = navigation.Uri;
-        Console.WriteLine($"CURRENT LOCATION: {currentLocation}");
         await localStorage.SetAsync(Constants.LocalStorageKeys.PostRefreshPath, currentLocation);
         
         var authEndpoint = "https://accounts.google.com/o/oauth2/v2/auth"

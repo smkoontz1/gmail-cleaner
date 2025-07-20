@@ -6,5 +6,8 @@ namespace GmailCleaner.Services.GmailApi.Responses
     {
         [JsonPropertyName("messages")]
         public List<MessageReponse> Messages { get; set; }
+     
+        [JsonPropertyName("nextPageToken")]
+        public string NextPageToken { get; set; }
     }
 }

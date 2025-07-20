@@ -1,26 +1,96 @@
-@using GmailCleaner.Data.Gmail.Models
+@using GmailCleaner.Models.SenderCounts
 
 <BSTable>
     <BSTHead>
         <BSTR>
-            <BSTD>Id</BSTD>
+            <BSTD>
+                <BSInputCheckbox
+                    TValue="string"
+                    CheckedValue="_checkedValue"
+                    Value="@(AllChecked ? _checkedValue : string.Empty)"
+                    ValueChanged="v => AllSendersChecked()"
+                />
+            </BSTD>
             <BSTD>Sender</BSTD>
-            <BSTD>Subject</BSTD>
+            <BSTD>Count</BSTD>
+            <BSTD></BSTD>
         </BSTR>
     </BSTHead>
     <BSTBody>
-        @foreach (var message in Messages)
+        @foreach (var senderCount in SenderCountPage.Page)
         {
             <BSTR>
-                <BSTD>@message.GmailMessageId</BSTD>
-                <BSTD>@message.Sender</BSTD>
-                <BSTD>@message.Subject</BSTD>
+                <BSTD>
+                    <BSInputCheckbox
+                        TValue="string"
+                        CheckedValue="_checkedValue"
+                        Value="@(CheckedSenders.Contains(senderCount.Sender) ? _checkedValue : string.Empty)"
+                        ValueChanged="v => SenderChecked(v, senderCount.Sender)"
+                    />
+                </BSTD>
+                <BSTD>@senderCount.Sender</BSTD>
+                <BSTD>@senderCount.Count</BSTD>
             </BSTR>
         }
     </BSTBody>
 </BSTable>
 
 @code {
+    private string _checkedValue = "nc";
+    
     [Parameter]
-    public List<StoredMessage> Messages { get; set; }
+    public SenderCountPage SenderCountPage { get; set; }
+
+    [Parameter]
+    public HashSet<string> CheckedSenders { get; set; }
+    
+    [Parameter]
+    public EventCallback<HashSet<string>> CheckedSendersChanged { get; set; }
+    
+    [Parameter]
+    public bool AllChecked { get; set; }
+    
+    [Parameter]
+    public EventCallback<bool> AllCheckedChanged { get; set; }
+
+    private async Task SenderChecked(string value, string sender)
+    {
+        if (value == _checkedValue)
+        {
+            CheckedSenders.Add(sender);
+        }
+        else
+        {
+            CheckedSenders.Remove(sender);
+
+            if (CheckedSenders.Count < SenderCountPage.Page.Count
+                && AllChecked)
+            {
+                AllChecked = false;
+                await AllCheckedChanged.InvokeAsync(AllChecked);
+            }
+        }
+    
+        await CheckedSendersChanged.InvokeAsync(CheckedSenders);
+    }
+
+    private async Task AllSendersChecked()
+    {
+        if (AllChecked)
+        {
+            AllChecked = false;
+            await AllCheckedChanged.InvokeAsync(AllChecked);
+            
+            CheckedSenders.Clear();
+            await CheckedSendersChanged.InvokeAsync(CheckedSenders);
+        }
+        else
+        {
+            AllChecked = true;
+            await AllCheckedChanged.InvokeAsync(AllChecked);
+            
+            SenderCountPage.Page.ForEach(c => CheckedSenders.Add(c.Sender));
+            await CheckedSendersChanged.InvokeAsync(CheckedSenders);
+        }
+    }
 }
