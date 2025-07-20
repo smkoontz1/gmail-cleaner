@@ -1,4 +1,4 @@
-﻿using GmailCleaner.Data.Gmail.Models;
+﻿using GmailCleaner.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace GmailCleaner.Data.Gmail
@@ -6,14 +6,18 @@ namespace GmailCleaner.Data.Gmail
     public class GmailDbContext : DbContext
     {
         public DbSet<StoredMessage> Messages { get; set; }
+        public DbSet<InboxSynchronization> InboxSynchronizations { get; set; }
 
         public string DbPath { get; }
 
         public GmailDbContext()
         {
-            var folder = Environment.SpecialFolder.LocalApplicationData;
-            var path = Environment.GetFolderPath(folder);
-            DbPath = Path.Join(path, "gmail.db");
+            var localAppDataFolder = Environment.SpecialFolder.LocalApplicationData;
+            var localAppDataPath = Environment.GetFolderPath(localAppDataFolder);
+            DbPath = Path.Join(
+                localAppDataPath,
+                Constants.AppName,
+                "gmail.db");
         }
 
         // The following configures EF to create a Sqlite database file in the

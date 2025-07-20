@@ -7,7 +7,7 @@ public class GmailApiAuthenticator(GoogleAuthService authService) : Authenticato
 {
     protected override async ValueTask<Parameter> GetAuthenticationParameter(string accessToken)
     {
-        Token = string.IsNullOrEmpty(Token) ? await authService.GetAuthTokenAsync() : Token;
+        Token = await authService.GetAuthTokenAsync();
 
         return new HeaderParameter(KnownHeaders.Authorization, $"Bearer {Token}");
     }

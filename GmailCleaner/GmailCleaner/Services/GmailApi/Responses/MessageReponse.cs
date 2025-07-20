@@ -13,6 +13,12 @@ namespace GmailCleaner.Services.GmailApi.Responses
         [JsonPropertyName("snippet")]
         public string Snippet { get; set; }
         
+        [JsonPropertyName("historyId")]
+        public string HistoryId { get; set; }
+        
+        [JsonPropertyName("internalDate")]
+        public string InternalDate { get; set; }
+        
         [JsonPropertyName("payload")]
         public PayloadResponse Payload { get; set; }
     }
