@@ -80,17 +80,23 @@ namespace GmailCleaner.Services.GmailApi
             foreach (var batch in messageBatches)
             {
                 var tasks = batch.Select(id => GetMessageAsync(userId, id)).ToArray();
-                
                 var results = await Task.WhenAll(tasks);
 
-                responses.AddRange(results);
+                foreach (var result in results)
+                {
+                    if (result != null)
+                    {
+                        responses.Add(result);
+                    }
+                }
+
                 Debug.WriteLine($"Retrieved {responses.Count} messages for page");
             }
             
             return responses;
         }
 
-        public async Task<MessageReponse> GetMessageAsync(string userId, string messageId)
+        public async Task<MessageReponse?> GetMessageAsync(string userId, string messageId)
         {
             var request = new RestRequest("users/{userId}/messages/{messageId}")
                 .AddUrlSegment("userId", userId)
@@ -100,6 +106,8 @@ namespace GmailCleaner.Services.GmailApi
             if (!apiResponse.IsSuccessful)
             {
                 Debug.WriteLine($"Get message failed with code: {apiResponse.StatusCode}");
+
+                return null;
             }
             var responseJson = apiResponse.Content;
             

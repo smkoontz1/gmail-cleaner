@@ -1,9 +1,119 @@
 ﻿@page "/"
 
-<PageTitle>Index</PageTitle>
+@using BlazorStrap
+@using GmailCleaner.Components.Gmail
+@using GmailCleaner.Models.SenderCounts
+@using GmailCleaner.Services.GmailManagement
 
-<h1>Hello, world!</h1>
+@inject GmailManagementService GmailManagementService
 
-Welcome to your new app.
+<PageTitle>Mail Management</PageTitle>
 
-<SurveyPrompt Title="How is Blazor working for you?" />
+<BSContainer>
+    <BSRow Class="mb-4">
+        <BSCol Class="d-flex justify-content-between align-items-center">
+            <h3>Mail Management</h3>
+            <BSButton Color="BSColor.Primary" OnClick="HandleSyncAsync">Sync Mail</BSButton>
+        </BSCol>
+    </BSRow>
+    @if (_loading)
+    {
+        <BSSpinner/>
+    }
+    else if (_syncing)
+    {
+        <p>Syncing Mail...</p>
+        <BSSpinner/>
+    }
+    else if (_deleting)
+    {
+        <p>Deleting Mail for @(_checkedSenders.Count) senders...</p>
+        <BSSpinner/>
+    }
+    else
+    {
+        <div class="d-flex justify-content-between align-items-end mb-2">
+            <div class="d-flex gap-3">
+                <div class="d-flex gap-2 align-items-center">
+                    <BSLabel Class="text-nowrap mb-0">Start Date</BSLabel>
+                    <BSInput InputType="InputType.Date" @bind-Value="_rangeStartDate"/>
+                </div>
+                <div class="d-flex gap-2 align-items-center">
+                    <BSLabel Class="text-nowrap mb-0">End Date</BSLabel>
+                    <BSInput InputType="InputType.Date" @bind-Value="_rangeEndDate"/>
+                </div>
+            </div>
+            <BSButton Color="BSColor.Primary">Apply</BSButton>
+        </div>
+        <MailTable
+            SenderCountPage="_senderCountPage"
+            @bind-CheckedSenders="_checkedSenders"
+            @bind-AllChecked="_allChecked"/>
+        <BSPagination Pages="_totalPages" Value="_page" ValueChanged="HandlePageChangeAsync"/>
+        <BSButton Color="BSColor.Danger" OnClick="HandleDeleteAsync">Delete Senders</BSButton>
+    }
+</BSContainer>
+
+@code {
+    private SenderCountPage _senderCountPage;
+    
+    private bool _loading;
+    private int _page = 1;
+    private const int _pageSize = 20;
+    private int _totalPages;
+    private bool _allChecked;
+    private bool _syncing;
+    private bool _deleting;
+    private DateTime _rangeStartDate = DateTime.Now.AddDays(-7);
+    private DateTime _rangeEndDate = DateTime.Now;
+
+    private HashSet<string> _checkedSenders = new();
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSenderCountsAsync();
+
+        await base.OnInitializedAsync();
+    }
+
+    private async Task HandlePageChangeAsync(int newPage)
+    {
+        _page = newPage;
+        _allChecked = false;
+
+        await LoadSenderCountsAsync();
+    }
+
+    private async Task HandleDeleteAsync()
+    {
+        _deleting = true;
+        
+        await GmailManagementService.DeleteBySendersAsync(_checkedSenders);
+
+        _checkedSenders.Clear();
+        await HandlePageChangeAsync(1);
+
+        _deleting = false;
+    }
+
+    private async Task HandleSyncAsync()
+    {
+        _syncing = true;
+
+        await GmailManagementService.SyncMail();
+
+        await HandlePageChangeAsync(1);
+
+        _syncing = false;
+    }
+
+    private async Task LoadSenderCountsAsync()
+    {
+        _loading = true;
+        
+        _senderCountPage = await GmailManagementService.GetSenderCountsAsync(_page, _pageSize);
+        _totalPages = (_senderCountPage.TotalCount / _pageSize) + 1;
+
+        _loading = false;
+    }
+}
